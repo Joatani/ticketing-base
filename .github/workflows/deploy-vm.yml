@@ -1,0 +1,32 @@
+name: Deploy to VM
+
+# The runner only opens an SSH session; the VM builds and restarts itself with
+# deploy/vm-deploy.sh, so a deploy costs about one runner minute.
+# The VM pins this key to that script with a forced command in authorized_keys.
+on:
+  push:
+    branches: [dev]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: deploy-vm
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Run deploy on the VM
+        env:
+          SSH_KEY: ${{ secrets.VM_DEPLOY_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VM_KNOWN_HOSTS }}
+          TARGET: ${{ vars.VM_SSH_TARGET }}
+        run: |
+          mkdir -p ~/.ssh
+          install -m 600 /dev/null ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh "$TARGET" deploy
